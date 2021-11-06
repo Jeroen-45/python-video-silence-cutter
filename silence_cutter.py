@@ -42,7 +42,7 @@ def getVideoDuration(filename: str) -> float:
 
 
 def getSectionsOfNewVideo(silences, duration):
-    """Returns timings for parts, where the video should be kept"""
+    """Returns timings for parts where the video should be kept"""
     return [0.0] + silences + [duration]
 
 
@@ -77,29 +77,32 @@ def writeFile(filename, content):
 
 
 def ffmpeg_run(file, videoFilter, audioFilter, outfile):
-    # prepare filter files
-    vFile = tempfile.NamedTemporaryFile(
-        mode="w", encoding="UTF-8", prefix="silence_video")
-    aFile = tempfile.NamedTemporaryFile(
-        mode="w", encoding="UTF-8", prefix="silence_audio")
+    """Run ffmpeg with the given filters on the given file,
+    outputting to the given outfile"""
+    # Create temporary files to store filters in
+    videoFilter_file = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+    audioFilter_file = os.path.join(tempfile.gettempdir(), os.urandom(24).hex())
+    open(videoFilter_file, "x").close()
+    open(audioFilter_file, "x").close()
 
-    videoFilter_file = vFile.name  # "/tmp/videoFilter" # TODO: replace with tempfile
-    audioFilter_file = aFile.name  # "/tmp/audioFilter" # TODO: replace with tempfile
+    # Write filters to the temp files
     writeFile(videoFilter_file, videoFilter)
     writeFile(audioFilter_file, audioFilter)
 
+    # Run ffmpeg with the created filter files
     command = ["ffmpeg", "-i", file,
                "-filter_script:v", videoFilter_file,
                "-filter_script:a", audioFilter_file,
                outfile]
     subprocess.run(command)
 
-    vFile.close()
-    aFile.close()
+    # Remove the temp files
+    os.remove(videoFilter_file)
+    os.remove(audioFilter_file)
 
 
 def cut_silences(infile, outfile, dB=-35):
-    print("detecting silences")
+    print("Detecting silences, this may take a while depending on the length of the video...")
     silences = findSilences(infile, dB)
     duration = getVideoDuration(infile)
     videoSegments = getSectionsOfNewVideo(silences, duration)
@@ -107,7 +110,7 @@ def cut_silences(infile, outfile, dB=-35):
     videoFilter = getFileContent_videoFilter(videoSegments)
     audioFilter = getFileContent_audioFilter(videoSegments)
 
-    print("create new video")
+    print("Creating new video...")
     ffmpeg_run(infile, videoFilter, audioFilter, outfile)
 
 
