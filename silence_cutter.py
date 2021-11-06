@@ -1,17 +1,19 @@
 import subprocess
 import tempfile
-import sys
 import os
+import argparse
 
 
-def findSilences(filename, dB=-35):
+def findSilences(filename, noise_tolerance, duration):
     """
     Returns a list of detected silence start and end times:
         even elements (0,2,4, ...) denote silence start time
         uneven elements (1,3,5, ...) denote silence end time
     """
-    command = ["ffmpeg", "-i", filename,
-               "-af", "silencedetect=n=" + str(dB) + "dB:d=1",
+    command = ["ffmpeg",
+               "-i", filename,
+               "-af", "silencedetect=n=" + str(noise_tolerance) +
+                      ":d=" + str(duration),
                "-f", "null", "-"]
     output = str(subprocess.run(command,
                                 stdout=subprocess.PIPE,
@@ -101,9 +103,9 @@ def ffmpeg_run(file, videoFilter, audioFilter, outfile):
     os.remove(audioFilter_file)
 
 
-def cut_silences(infile, outfile, dB=-35):
+def cut_silences(infile, outfile, noise_tolerance, silence_min_duration):
     print("Detecting silences, this may take a while depending on the length of the video...")
-    silences = findSilences(infile, dB)
+    silences = findSilences(infile, noise_tolerance, silence_min_duration)
     duration = getVideoDuration(infile)
     videoSegments = getSectionsOfNewVideo(silences, duration)
 
@@ -114,57 +116,33 @@ def cut_silences(infile, outfile, dB=-35):
     ffmpeg_run(infile, videoFilter, audioFilter, outfile)
 
 
-def printHelp():
-    print("Usage:")
-    print("   silence_cutter.py [infile] [optional: outfile] [optional: dB]")
-    print("   ")
-    print("        [outfile]")
-    print("         Default: [infile]_cut")
-    print("   ")
-    print("        [dB]")
-    print("         Default: -30")
-    print("         A suitable value might be around -50 to -35.")
-    print("         The lower the more volume will be defined das 'silent'")
-    print("         -30: Cut Mouse clicks and mouse movent; cuts are very recognizable.")
-    print("         -35: Cut inhaling breath before speaking; cuts are quite recognizable.")
-    print("         -40: Cuts are almost not recognizable.")
-    print("         -50: Cuts are almost not recognizable.")
-    print("              Cuts nothing, if there is background noise.")
-    print("         ")
-    print("")
-    print("Dependencies:")
-    print("          ffmpeg")
-    print("          ffprobe")
-
-
 def main():
-    args = sys.argv[1:]
-    if (len(args) < 1):
-        printHelp()
+    parser = argparse.ArgumentParser(
+        description='Automatically detect and cut silences from videos.')
+    parser.add_argument("input_file", help="The file that should have the silences cut from it")
+    parser.add_argument("-o", "--output_file", help="Where the resulting video should be stored")
+    parser.add_argument("-n", "--noise_tolerance", default="0.03",
+                        help=("The threshold for determining wether audio is considered silence. "
+                              "Can be specified in dB (in case 'dB' is appended to the specified value) "
+                              "or amplitude ratio. Default is 0.03"))
+    parser.add_argument("-d", "--min_duration", default="0.1",
+                        help=("The minimum duration (in seconds) for a silence to be detected as such. "
+                              "Default is 0.1"))
+    args = parser.parse_args()
+
+    # Check if input file exists
+    if (not os.path.isfile(args.input_file)):
+        print("error: The input file could not be found:\n" + args.input_file)
         return
 
-    if (args[0] == "--help"):
-        printHelp()
-        return
+    # Set default output filename if it wasn't specified
+    outfile = args.output_file
+    if not outfile:
+        tmp = os.path.splitext(args.input_file)
+        outfile = tmp[0] + "_cut" + tmp[1]
 
-    infile = args[0]
-
-    if (not os.path.isfile(infile)):
-        print("ERROR: The infile could not be found:\n" + infile)
-        return
-
-    # set default values for optionl arguments
-    tmp = os.path.splitext(infile)
-    outfile = tmp[0] + "_cut" + tmp[1]
-    dB = -30
-
-    if (len(args) >= 2):
-        outfile = args[1]
-
-    if (len(args) >= 3):
-        dB = args[2]
-
-    cut_silences(infile, outfile, dB)
+    # Cut out the silences and store the result
+    cut_silences(args.input_file, outfile, args.noise_tolerance, args.min_duration)
 
 
 if __name__ == "__main__":
