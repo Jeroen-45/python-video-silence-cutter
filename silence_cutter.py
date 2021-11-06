@@ -6,29 +6,28 @@ import os
 
 def findSilences(filename, dB=-35):
     """
-    returns a list:
+    Returns a list of detected silence start and end times:
         even elements (0,2,4, ...) denote silence start time
         uneven elements (1,3,5, ...) denote silence end time
     """
     command = ["ffmpeg", "-i", filename,
                "-af", "silencedetect=n=" + str(dB) + "dB:d=1",
                "-f", "null", "-"]
-    output = subprocess.run(
-        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    s = str(output)
-    lines = s.split("\\n")
+    output = str(subprocess.run(command,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE))
+    lines = output.replace("\\r", "").split("\\n")
+
     time_list = []
     for line in lines:
         if ("silencedetect" in line):
             words = line.split(" ")
             for i in range(len(words)):
-                if ("silence_start" in words[i]):
+                if "silence_start" in words[i]:
                     time_list.append(float(words[i + 1]))
                 if "silence_end" in words[i]:
                     time_list.append(float(words[i + 1]))
-    silence_section_list = list(zip(*[iter(time_list)] * 2))
 
-    # return silence_section_list
     return time_list
 
 
