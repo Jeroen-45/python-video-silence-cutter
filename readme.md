@@ -2,7 +2,7 @@
 
 **This tool is made to just work!**
 
-However, at the moment, it's a quick-write. Please report bugs, if you found some.
+It automatically cuts out all the silences from your videos. This is useful for, for example, shortening lecture recordings, or automating a 'first pass' edit for your own videos. This program was adapted from the [python script by DarkTrick](https://github.com/DarkTrick/python-video-silence-cutter), and has been made to work properly cross-platform and include some more options.
 
 ## Dependencies
 
@@ -18,29 +18,10 @@ Make sure, that the path to `ffmpeg` and `ffprobe` are inside the "path variable
 ## How to use
 
 - Easiest command: <br>
-`python3 silence_cutter.py [your video]`
+`python silence_cutter.py [input_file]`
 
-- Show **help** and suggestions: <br>
-`python3 silence_cutter.py --help`
+- Show **help** and more options: <br>
+`python silence_cutter.py -h`
 
-- More Options: <br>
-`python3 silence_cutter.py [your video] [outfile] [silence dB border]`
-
-
-## Bugs
-
-File them directly here on Github. I'll try to fix them as soon as possible.
-
-## Comparison to other tools
-As far as my reseach goes, all other tools suck:
-- They don't work
-- They have huge dependencies
-- They have complex dependencies
-- Their dependencies don't work
-- They store each frame of the video as bitmap file<br> (how can you even think about something like that)
-
-
-
-
-
-
+- All options: <br>
+`python silence_cutter.py [-h] [-o OUTPUT_FILE] [-n NOISE_TOLERANCE] [-d MIN_DURATION] input_file`
