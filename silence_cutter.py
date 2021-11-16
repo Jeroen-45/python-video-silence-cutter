@@ -48,27 +48,27 @@ def getSectionsOfNewVideo(silences, duration):
     return [0.0] + silences + [duration]
 
 
-def ffmpeg_filter_getSegmentFilter(videoSectionTimings):
+def ffmpeg_filter_getSegmentFilter(videoSectionTimings, margin):
     ret = ""
     for i in range(int(len(videoSectionTimings) / 2)):
-        start = videoSectionTimings[2 * i]
-        end = videoSectionTimings[2 * i + 1]
+        start = max(videoSectionTimings[2 * i] - margin, videoSectionTimings[0])
+        end = min(videoSectionTimings[2 * i + 1] + margin, videoSectionTimings[-1])
         ret += "between(t," + str(start) + "," + str(end) + ")+"
     # cut away last "+"
     ret = ret[:-1]
     return ret
 
 
-def getFileContent_videoFilter(videoSectionTimings):
+def getFileContent_videoFilter(videoSectionTimings, margin):
     ret = "select='"
-    ret += ffmpeg_filter_getSegmentFilter(videoSectionTimings)
+    ret += ffmpeg_filter_getSegmentFilter(videoSectionTimings, margin)
     ret += "', setpts=N/FRAME_RATE/TB"
     return ret
 
 
-def getFileContent_audioFilter(videoSectionTimings):
+def getFileContent_audioFilter(videoSectionTimings, margin):
     ret = "aselect='"
-    ret += ffmpeg_filter_getSegmentFilter(videoSectionTimings)
+    ret += ffmpeg_filter_getSegmentFilter(videoSectionTimings, margin)
     ret += "', asetpts=N/SR/TB"
     return ret
 
@@ -103,14 +103,14 @@ def ffmpeg_run(file, videoFilter, audioFilter, outfile):
     os.remove(audioFilter_file)
 
 
-def cut_silences(infile, outfile, noise_tolerance, silence_min_duration):
+def cut_silences(infile, outfile, noise_tolerance, silence_min_duration, margin):
     print("Detecting silences, this may take a while depending on the length of the video...")
     silences = findSilences(infile, noise_tolerance, silence_min_duration)
     duration = getVideoDuration(infile)
     videoSegments = getSectionsOfNewVideo(silences, duration)
 
-    videoFilter = getFileContent_videoFilter(videoSegments)
-    audioFilter = getFileContent_audioFilter(videoSegments)
+    videoFilter = getFileContent_videoFilter(videoSegments, margin)
+    audioFilter = getFileContent_audioFilter(videoSegments, margin)
 
     print("Creating new video...")
     ffmpeg_run(infile, videoFilter, audioFilter, outfile)
@@ -128,11 +128,20 @@ def main():
     parser.add_argument("-d", "--min_duration", default="0.1",
                         help=("The minimum duration (in seconds) for a silence to be detected as such. "
                               "Default is 0.1"))
+    parser.add_argument("-m", "--margin", type=float, default=0.0,
+                        help=("The margin (in seconds) that should be kept before and after a non-silent part. "
+                              "Should not be larger than half of the minimum duration. "
+                              "Default is 0.0"))
     args = parser.parse_args()
 
     # Check if input file exists
     if (not os.path.isfile(args.input_file)):
         print("error: The input file could not be found:\n" + args.input_file)
+        return
+
+    # Check if the margin isn't greater than half of the minimum duration
+    if (args.margin > (float(args.min_duration) / 2)):
+        print("error: The margin is greater than half of the minimum duration\n")
         return
 
     # Set default output filename if it wasn't specified
@@ -142,7 +151,7 @@ def main():
         outfile = tmp[0] + "_cut" + tmp[1]
 
     # Cut out the silences and store the result
-    cut_silences(args.input_file, outfile, args.noise_tolerance, args.min_duration)
+    cut_silences(args.input_file, outfile, args.noise_tolerance, args.min_duration, args.margin)
 
 
 if __name__ == "__main__":
