@@ -24,4 +24,4 @@ Make sure, that the path to `ffmpeg` and `ffprobe` are inside the "path variable
 `python silence_cutter.py -h`
 
 - All options: <br>
-`python silence_cutter.py [-h] [-o OUTPUT_FILE] [-n NOISE_TOLERANCE] [-d MIN_DURATION] input_file`
+`python silence_cutter.py [-h] [-o OUTPUT_FILE] [-n NOISE_TOLERANCE] [-d MIN_DURATION] [-m MARGIN] input_file`
